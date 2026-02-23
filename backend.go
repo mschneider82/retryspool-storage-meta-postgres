@@ -216,7 +216,7 @@ func (b *Backend) DeleteMeta(ctx context.Context, messageID string) error {
 	}()
 
 	query := fmt.Sprintf(`DELETE FROM %s WHERE id = $1`, b.tableName)
-	
+
 	result, err := tx.ExecContext(ctx, query, messageID)
 	if err != nil {
 		return fmt.Errorf("failed to delete metadata: %w", err)
@@ -353,14 +353,14 @@ type postgresIterator struct {
 	state     metastorage.QueueState
 	batchSize int
 	ctx       context.Context
-	
+
 	// Current state
-	rows      *sql.Rows
-	current   []metastorage.MessageMetadata
-	index     int
-	offset    int
-	finished  bool
-	closed    bool
+	rows     *sql.Rows
+	current  []metastorage.MessageMetadata
+	index    int
+	offset   int
+	finished bool
+	closed   bool
 }
 
 // Next returns the next message metadata
@@ -510,7 +510,7 @@ func (b *Backend) MoveToState(ctx context.Context, messageID string, fromState, 
 		} else if err != nil {
 			return fmt.Errorf("failed to check current state: %w", err)
 		}
-		return fmt.Errorf("message %s is in state %d, expected %d", messageID, currentState, int(fromState))
+		return metastorage.ErrStateConflict
 	}
 
 	if err = tx.Commit(); err != nil {
