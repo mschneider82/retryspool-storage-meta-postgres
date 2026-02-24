@@ -30,7 +30,8 @@ func (b *Backend) createTable() error {
 		last_error TEXT,
 		size BIGINT NOT NULL DEFAULT 0,
 		priority INTEGER NOT NULL DEFAULT 5,
-		headers JSONB
+		headers JSONB,
+		retry_policy_name TEXT
 	);
 	
 	-- Create indexes for efficient querying
@@ -68,8 +69,8 @@ func (b *Backend) StoreMeta(ctx context.Context, messageID string, metadata meta
 	}
 
 	query := fmt.Sprintf(`
-		INSERT INTO %s (id, state, attempts, max_attempts, next_retry, created, updated, last_error, size, priority, headers)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		INSERT INTO %s (id, state, attempts, max_attempts, next_retry, created, updated, last_error, size, priority, headers, retry_policy_name)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 	`, b.tableName)
 
 	_, err = tx.ExecContext(ctx, query,
@@ -84,6 +85,7 @@ func (b *Backend) StoreMeta(ctx context.Context, messageID string, metadata meta
 		metadata.Size,
 		metadata.Priority,
 		headersJSON,
+		metadata.RetryPolicyName,
 	)
 
 	if err != nil {
@@ -104,7 +106,7 @@ func (b *Backend) GetMeta(ctx context.Context, messageID string) (metastorage.Me
 	var headersJSON []byte
 
 	query := fmt.Sprintf(`
-		SELECT state, attempts, max_attempts, next_retry, created, updated, last_error, size, priority, headers
+		SELECT state, attempts, max_attempts, next_retry, created, updated, last_error, size, priority, headers, retry_policy_name
 		FROM %s WHERE id = $1
 	`, b.tableName)
 
@@ -120,6 +122,7 @@ func (b *Backend) GetMeta(ctx context.Context, messageID string) (metastorage.Me
 		&metadata.Size,
 		&metadata.Priority,
 		&headersJSON,
+		&metadata.RetryPolicyName,
 	)
 
 	if err != nil {
@@ -166,7 +169,8 @@ func (b *Backend) UpdateMeta(ctx context.Context, messageID string, metadata met
 			last_error = $7, 
 			size = $8, 
 			priority = $9, 
-			headers = $10
+			headers = $10,
+			retry_policy_name = $11
 		WHERE id = $1
 	`, b.tableName)
 
@@ -181,6 +185,7 @@ func (b *Backend) UpdateMeta(ctx context.Context, messageID string, metadata met
 		metadata.Size,
 		metadata.Priority,
 		headersJSON,
+		metadata.RetryPolicyName,
 	)
 
 	if err != nil {
@@ -400,7 +405,7 @@ func (it *postgresIterator) loadBatch(ctx context.Context) error {
 	// Build query for full metadata
 	query := fmt.Sprintf(`
 		SELECT id, state, attempts, max_attempts, next_retry, created, updated, 
-			   last_error, size, priority, headers
+			   last_error, size, priority, headers, retry_policy_name
 		FROM %s 
 		WHERE state = $1 
 		ORDER BY created ASC 
@@ -431,6 +436,7 @@ func (it *postgresIterator) loadBatch(ctx context.Context) error {
 			&metadata.Size,
 			&metadata.Priority,
 			&headersJSON,
+			&metadata.RetryPolicyName,
 		)
 		if err != nil {
 			return fmt.Errorf("failed to scan message: %w", err)
