@@ -39,10 +39,14 @@ func (b *Backend) createTable() error {
 	CREATE INDEX IF NOT EXISTS idx_%s_next_retry ON %s(next_retry) WHERE state = %d;
 	CREATE INDEX IF NOT EXISTS idx_%s_priority ON %s(priority, created);
 	CREATE INDEX IF NOT EXISTS idx_%s_created ON %s(created);
+	CREATE INDEX IF NOT EXISTS idx_%s_state_created ON %s(state, created DESC);
+	CREATE INDEX IF NOT EXISTS idx_%s_state_updated ON %s(state, updated DESC);
 	`,
 		b.tableName,
 		b.tableName, b.tableName,
 		b.tableName, b.tableName, int(metastorage.StateDeferred),
+		b.tableName, b.tableName,
+		b.tableName, b.tableName,
 		b.tableName, b.tableName,
 		b.tableName, b.tableName,
 	)
